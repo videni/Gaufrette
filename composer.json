@@ -61,7 +61,6 @@
         "ext-fileinfo": "This extension is used to automatically detect the content-type of a file in the AwsS3, OpenCloud, AzureBlogStorage and GoogleCloudStorage adapters",
         "ext-mongo": "*",
         "ext-mongodb": "*",
-        "ext-fileinfo": "This extension is used to automatically detect the content-type of a file in the AwsS3, OpenCloud, AzureBlogStorage and GoogleCloudStorage adapters",
         "mongodb/mongodb": "*",
         "google/cloud-storage": "to use Google Cloud Client Library"
     },
