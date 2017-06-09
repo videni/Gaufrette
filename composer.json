@@ -40,7 +40,7 @@
         "akeneo/phpspec-skip-example-extension": "^3.0",
         "liuggio/fastest": "^1.6",
         "google/cloud": "^0.20.1",
-        "google/cloud-storage": "dev-master"
+        "google/cloud-storage": "~1.0"
     },
     "suggest": {
         "knplabs/knp-gaufrette-bundle": "to use with Symfony",
