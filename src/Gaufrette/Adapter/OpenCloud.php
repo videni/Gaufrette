@@ -3,12 +3,12 @@
 namespace Gaufrette\Adapter;
 
 use Gaufrette\Adapter;
+use Gaufrette\Exception\FileNotFound;
+use Gaufrette\Exception\StorageFailure;
 use Gaufrette\Util;
 use Guzzle\Http\Exception\BadResponseException;
-use OpenCloud\Common\Exceptions\DeleteError;
 use OpenCloud\ObjectStore\Resource\Container;
 use OpenCloud\ObjectStore\Service;
-use OpenCloud\Common\Exceptions\CreateUpdateError;
 use OpenCloud\ObjectStore\Exception\ObjectNotFoundException;
 
 /**
@@ -81,140 +81,122 @@ class OpenCloud implements Adapter,
     }
 
     /**
-     * Reads the content of the file.
-     *
-     * @param string $key
-     *
-     * @return string|bool if cannot read content
+     * {@inheritdoc}
      */
     public function read($key)
     {
-        if ($object = $this->tryGetObject($key)) {
-            return $object->getContent();
-        }
+        try {
+            return $this->getObject($key)->getContent();
+        } catch (\Exception $e) {
+            if ($e instanceof ObjectNotFoundException) {
+                throw new FileNotFound($key, $e->getCode(), $e);
+            }
 
-        return false;
+            throw StorageFailure::unexpectedFailure('read', ['key' => $key], $e);
+        }
     }
 
     /**
-     * Writes the given content into the file.
-     *
-     * @param string $key
-     * @param string $content
-     *
-     * @return int|bool The number of bytes that were written into the file
+     * {@inheritdoc}
      */
     public function write($key, $content)
     {
         try {
             $this->getContainer()->uploadObject($key, $content);
-        } catch (CreateUpdateError $updateError) {
-            return false;
+        } catch (\Exception $e) {
+            throw StorageFailure::unexpectedFailure(
+                'write',
+                ['key' => $key, 'content' => $content],
+                $e
+            );
         }
 
         return Util\Size::fromContent($content);
     }
 
     /**
-     * Indicates whether the file exists.
-     *
-     * @param string $key
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function exists($key)
     {
         try {
-            $exists = $this->getContainer()->getPartialObject($key) !== false;
-        } catch (BadResponseException $objFetchError) {
-            return false;
-        }
+            return $this->getContainer()->getPartialObject($key) !== false;
+        } catch (\Exception $e) {
+            if ($e instanceof BadResponseException) {
+                return false;
+            }
 
-        return $exists;
+            throw StorageFailure::unexpectedFailure('exists', ['key' => $key], $e);
+        }
     }
 
     /**
-     * Returns an array of all keys (files and directories).
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public function keys()
     {
-        $objectList = $this->getContainer()->objectList();
-        $keys = array();
+        try {
+            $objectList = $this->getContainer()->objectList();
+            $keys = array();
 
-        while ($object = $objectList->next()) {
-            $keys[] = $object->getName();
+            while ($object = $objectList->next()) {
+                $keys[] = $object->getName();
+            }
+
+            sort($keys);
+
+            return $keys;
+        } catch (\Exception $e) {
+            throw StorageFailure::unexpectedFailure('keys', [], $e);
         }
-
-        sort($keys);
-
-        return $keys;
     }
 
     /**
-     * Returns the last modified time.
-     *
-     * @param string $key
-     *
-     * @return int|bool An UNIX like timestamp or false
+     * {@inheritdoc}
      */
     public function mtime($key)
     {
-        if ($object = $this->tryGetObject($key)) {
-            return (new \DateTime($object->getLastModified()))->format('U');
-        }
+        try {
+            $object = $this->getObject($key);
 
-        return false;
+            return (new \DateTime($object->getLastModified()))->format('U');
+        } catch (\Exception $e) {
+            if ($e instanceof ObjectNotFoundException) {
+                throw new FileNotFound($key, $e->getCode(), $e);
+            }
+
+            throw StorageFailure::unexpectedFailure('mtime', ['key' => $key], $e);
+        }
     }
 
     /**
-     * Deletes the file.
-     *
-     * @param string $key
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function delete($key)
     {
-        if (!$object = $this->tryGetObject($key)) {
-            return false;
-        }
-
         try {
-            $object->delete();
-        } catch (DeleteError $deleteError) {
-            return false;
-        }
+            $this->getObject($key)->delete();
+        } catch (\Exception $e) {
+            if ($e instanceof ObjectNotFoundException) {
+                throw new FileNotFound($key, $e->getCode(), $e);
+            }
 
-        return true;
+            throw StorageFailure::unexpectedFailure('delete', ['key' => $key], $e);
+        }
     }
 
     /**
-     * Renames a file.
-     *
-     * @param string $sourceKey
-     * @param string $targetKey
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function rename($sourceKey, $targetKey)
     {
-        if (false !== $this->write($targetKey, $this->read($sourceKey))) {
-            $this->delete($sourceKey);
+        $this->write($targetKey, $this->read($sourceKey));
 
-            return true;
-        }
-
-        return false;
+        $this->delete($sourceKey);
     }
 
     /**
-     * Check if key is directory.
-     *
-     * @param string $key
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isDirectory($key)
     {
@@ -222,32 +204,30 @@ class OpenCloud implements Adapter,
     }
 
     /**
-     * Returns the checksum of the specified key.
-     *
-     * @param string $key
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function checksum($key)
     {
-        if ($object = $this->tryGetObject($key)) {
-            return $object->getETag();
-        }
+        try {
+            return $this->getObject($key)->getETag();
+        } catch (\Exception $e) {
+            if ($e instanceof ObjectNotFoundException) {
+                throw new FileNotFound($key, $e->getCode(), $e);
+            }
 
-        return false;
+            throw StorageFailure::unexpectedFailure('checksum', ['key' => $key], $e);
+        }
     }
 
     /**
      * @param string $key
      *
-     * @return \OpenCloud\ObjectStore\Resource\DataObject|false
+     * @throws \OpenCloud\ObjectStore\Exception\ObjectNotFoundException
+     *
+     * @return \OpenCloud\ObjectStore\Resource\DataObject
      */
-    protected function tryGetObject($key)
+    protected function getObject($key)
     {
-        try {
-            return $this->getContainer()->getObject($key);
-        } catch (ObjectNotFoundException $objFetchError) {
-            return false;
-        }
+        return $this->getContainer()->getObject($key);
     }
 }
