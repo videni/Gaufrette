@@ -190,6 +190,13 @@ class OpenCloud implements Adapter,
      */
     public function rename($sourceKey, $targetKey)
     {
+        if ($this->exists($targetKey)) {
+            throw StorageFailure::unexpectedFailure(
+                'rename',
+                ['sourceKey' => $sourceKey, 'targetKey' => $targetKey]
+            );
+        }
+
         $this->write($targetKey, $this->read($sourceKey));
 
         $this->delete($sourceKey);

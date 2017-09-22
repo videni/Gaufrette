@@ -124,6 +124,30 @@ class OpenCloudSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringdelete('test');
     }
 
+    function it_renames_file(Container $container, DataObject $source, DataObject $dest)
+    {
+        $testData     = 'Hello World!';
+        $testDataSize = strlen($testData);
+
+        $container->getPartialObject('dest')->willReturn(false);
+
+        $source->getContent()->willReturn($testData);
+        $container->getObject('source')->willReturn($source);
+        $source->delete()->willReturn(null);
+
+        $dest->getContentLength()->willReturn($testDataSize);
+        $container->uploadObject('dest', $testData)->willReturn($dest);
+
+        $this->rename('source', 'dest')->shouldReturn(null);
+    }
+
+    function it_throws_storage_failure_when_dest_already_exists_during_rename(Container $container, DataObject $dest)
+    {
+        $container->getPartialObject('dest')->willReturn($dest);
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringrename('source', 'dest');
+    }
+
     function it_returns_checksum(Container $container, DataObject $object)
     {
         $object->getEtag()->willReturn('test String');
