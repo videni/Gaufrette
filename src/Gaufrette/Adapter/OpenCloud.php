@@ -6,19 +6,27 @@ use Gaufrette\Adapter;
 use Gaufrette\Exception\FileNotFound;
 use Gaufrette\Exception\StorageFailure;
 use Gaufrette\Util;
-use Guzzle\Http\Exception\BadResponseException;
-use OpenCloud\ObjectStore\Resource\Container;
-use OpenCloud\ObjectStore\Service;
-use OpenCloud\ObjectStore\Exception\ObjectNotFoundException;
+use OpenStack\Common\Error\BadResponseError;
+use OpenStack\ObjectStore\v1\Models\Container;
+use OpenStack\ObjectStore\v1\Models\Object;
+use OpenStack\ObjectStore\v1\Service;
 
 /**
  * OpenCloud adapter.
  *
  * @author  James Watson <james@sitepulse.org>
  * @author  Daniel Richter <nexyz9@gmail.com>
+ * @author  Nicolas MURE <nicolas.mure@knplabs.com>
+ *
+ * @see http://docs.os.php-opencloud.com/en/latest/services/object-store/v1/objects.html
+ * @see http://refdocs.os.php-opencloud.com/OpenStack/OpenStack.html
  */
 class OpenCloud implements Adapter,
-                           ChecksumCalculator
+                           ChecksumCalculator,
+                           ListKeysAware,
+                           MetadataSupporter,
+                           MimeTypeProvider,
+                           SizeCalculator
 {
     /**
      * @var Service
@@ -66,18 +74,27 @@ class OpenCloud implements Adapter,
         }
 
         try {
-            return $this->container = $this->objectStore->getContainer($this->containerName);
-        } catch (BadResponseException $e) { //OpenCloud lib does not wrap this exception
+            if ($this->objectStore->containerExists($this->containerName)) {
+                return $this->container = $this->objectStore->getContainer($this->containerName);
+            }
+
             if (!$this->createContainer) {
                 throw new \RuntimeException(sprintf('Container "%s" does not exist.', $this->containerName));
             }
-        }
 
-        if (!$container = $this->objectStore->createContainer($this->containerName)) {
-            throw new \RuntimeException(sprintf('Container "%s" could not be created.', $this->containerName));
+            try {
+                return $this->container = $this->objectStore->createContainer(['name' => $this->containerName]);
+            } catch (BadResponseError $e) {
+                throw new \RuntimeException(
+                    sprintf('Container "%s" could not be created (HTTP %d response received)', $this->containerName, $e->getResponse()->getStatusCode())
+                );
+            }
+        } catch (BadResponseError $e) {
+            // non 404 status error received
+            throw new \RuntimeException(
+                sprintf('HTTP %d response received when checking the existence of the container "%s"', $e->getResponse()->getStatusCode(), $this->containerName)
+            );
         }
-
-        return $this->container = $container;
     }
 
     /**
@@ -86,10 +103,12 @@ class OpenCloud implements Adapter,
     public function read($key)
     {
         try {
-            return $this->getObject($key)->getContent();
-        } catch (\Exception $e) {
-            if ($e instanceof ObjectNotFoundException) {
-                throw new FileNotFound($key, $e->getCode(), $e);
+            /** @var \Psr\Http\Message\StreamInterface $stream */
+            // @WARNING: This could attempt to load a large amount of data into memory.
+            return (string) $this->getObject($key)->download();
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
             }
 
             throw StorageFailure::unexpectedFailure('read', ['key' => $key], $e);
@@ -102,16 +121,17 @@ class OpenCloud implements Adapter,
     public function write($key, $content)
     {
         try {
-            $this->getContainer()->uploadObject($key, $content);
-        } catch (\Exception $e) {
+            $this->getContainer()->createObject([
+                'name' => $key,
+                'content' => $content,
+            ]);
+        } catch (BadResponseError $e) {
             throw StorageFailure::unexpectedFailure(
                 'write',
                 ['key' => $key, 'content' => $content],
                 $e
             );
         }
-
-        return Util\Size::fromContent($content);
     }
 
     /**
@@ -120,12 +140,8 @@ class OpenCloud implements Adapter,
     public function exists($key)
     {
         try {
-            return $this->getContainer()->getPartialObject($key) !== false;
-        } catch (\Exception $e) {
-            if ($e instanceof BadResponseException) {
-                return false;
-            }
-
+            return $this->getContainer()->objectExists($key);
+        } catch (BadResponseError $e) {
             throw StorageFailure::unexpectedFailure('exists', ['key' => $key], $e);
         }
     }
@@ -136,18 +152,25 @@ class OpenCloud implements Adapter,
     public function keys()
     {
         try {
-            $objectList = $this->getContainer()->objectList();
-            $keys = array();
-
-            while ($object = $objectList->next()) {
-                $keys[] = $object->getName();
-            }
-
-            sort($keys);
-
-            return $keys;
-        } catch (\Exception $e) {
+            return array_map(function (Object $object) {
+                return $object->name;
+            }, iterator_to_array($this->getContainer()->listObjects()));
+        } catch (BadResponseError $e ) {
             throw StorageFailure::unexpectedFailure('keys', [], $e);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function listKeys($prefix = '')
+    {
+        try {
+            return array_filter($this->keys(), function ($key) {
+                return 0 === strpos($key, $prefix);
+            });
+        } catch (StorageFailure $e) {
+            throw StorageFailure::unexpectedFailure('listKeys', ['prefix' => $prefix], $e);
         }
     }
 
@@ -157,12 +180,10 @@ class OpenCloud implements Adapter,
     public function mtime($key)
     {
         try {
-            $object = $this->getObject($key);
-
-            return (new \DateTime($object->getLastModified()))->format('U');
-        } catch (\Exception $e) {
-            if ($e instanceof ObjectNotFoundException) {
-                throw new FileNotFound($key, $e->getCode(), $e);
+            return (new \DateTime($this->retrieveObject($key)->lastModified))->format('U');
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
             }
 
             throw StorageFailure::unexpectedFailure('mtime', ['key' => $key], $e);
@@ -216,10 +237,10 @@ class OpenCloud implements Adapter,
     public function checksum($key)
     {
         try {
-            return $this->getObject($key)->getETag();
-        } catch (\Exception $e) {
-            if ($e instanceof ObjectNotFoundException) {
-                throw new FileNotFound($key, $e->getCode(), $e);
+            return $this->retrieveObject($key)->hash;
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
             }
 
             throw StorageFailure::unexpectedFailure('checksum', ['key' => $key], $e);
@@ -227,14 +248,104 @@ class OpenCloud implements Adapter,
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function getMetadata($key)
+    {
+        try {
+            return $this->getObject($key)->getMetadata();
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
+            }
+
+            throw StorageFailure::unexpectedFailure('getMetadata', [], $e);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setMetadata($key, $content)
+    {
+        try {
+            $this->getObject($key)->resetMetadata($content);
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
+            }
+
+            throw StorageFailure::unexpectedFailure(
+                'setMetadata',
+                ['key' => $key, 'content' => $content],
+                $e
+            );
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function mimeType($key)
+    {
+        try {
+            return $this->retrieveObject($key)->contentType;
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
+            }
+
+            throw StorageFailure::unexpectedFailure('mimeType', ['key' => $key], $e);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function size($key)
+    {
+        try {
+            return $this->retrieveObject($key)->contentLength;
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
+            }
+
+            throw StorageFailure::unexpectedFailure('size', ['key' => $key], $e);
+        }
+    }
+
+    /**
+     * Shortcut to get an object from the container.
+     * This function will NOT perform an HTTP request.
+     *
      * @param string $key
      *
-     * @throws \OpenCloud\ObjectStore\Exception\ObjectNotFoundException
+     * @throws BadResponseError
      *
-     * @return \OpenCloud\ObjectStore\Resource\DataObject
+     * @return Object
      */
     protected function getObject($key)
     {
         return $this->getContainer()->getObject($key);
+    }
+
+    /**
+     * Shortcut to get an object from the container.
+     * The returned object will have its infos available (but not its content).
+     * This function WILL perform an HTTP request.
+     *
+     * @param string $key
+     *
+     * @throws BadResponseError
+     *
+     * @return Object
+     */
+    protected function retrieveObject($key)
+    {
+        $object = $this->getObject();
+        $object->retrieve();
+
+        return $object;
     }
 }
