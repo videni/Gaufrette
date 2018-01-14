@@ -166,7 +166,7 @@ class OpenCloud implements Adapter,
     public function listKeys($prefix = '')
     {
         try {
-            return array_filter($this->keys(), function ($key) {
+            return array_filter($this->keys(), function ($key) use ($prefix) {
                 return 0 === strpos($key, $prefix);
             });
         } catch (StorageFailure $e) {
@@ -197,9 +197,9 @@ class OpenCloud implements Adapter,
     {
         try {
             $this->getObject($key)->delete();
-        } catch (\Exception $e) {
-            if ($e instanceof ObjectNotFoundException) {
-                throw new FileNotFound($key, $e->getCode(), $e);
+        } catch (BadResponseError $e) {
+            if (404 === $e->getResponse()->getStatusCode()) {
+                throw new FileNotFound($key);
             }
 
             throw StorageFailure::unexpectedFailure('delete', ['key' => $key], $e);
@@ -343,7 +343,7 @@ class OpenCloud implements Adapter,
      */
     protected function retrieveObject($key)
     {
-        $object = $this->getObject();
+        $object = $this->getObject($key);
         $object->retrieve();
 
         return $object;

@@ -2,26 +2,29 @@
 
 namespace spec\Gaufrette\Adapter;
 
-use Guzzle\Http\Exception\BadResponseException;
-use OpenCloud\Common\Collection;
-use OpenCloud\Common\Exceptions\CreateUpdateError;
-use OpenCloud\Common\Exceptions\DeleteError;
-use OpenCloud\ObjectStore\Exception\ObjectNotFoundException;
-use OpenCloud\ObjectStore\Resource\Container;
-use OpenCloud\ObjectStore\Resource\DataObject;
-use OpenCloud\ObjectStore\Service;
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\BufferStream;
+use OpenStack\Common\Error\BadResponseError;
+use OpenStack\Identity\v2\Api;
+use OpenStack\ObjectStore\v1\Models\Container;
+use OpenStack\ObjectStore\v1\Models\Object;
+use OpenStack\ObjectStore\v1\Service;
 use PhpSpec\ObjectBehavior;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * OpenCloudSpec
  *
  * @author  Chris Warner <cdw.lighting@gmail.com>
  * @author  Daniel Richter <nexyz9@gmail.com>
+ * @author  Nicolas MURE <nicolas.mure@knplabs.com>
  */
 class OpenCloudSpec extends ObjectBehavior
 {
     function let(Service $objectStore, Container $container)
     {
+        $objectStore->containerExists('test')->willReturn(true);
         $objectStore->getContainer('test')->willReturn($container);
         $this->beConstructedWith($objectStore, 'test', false);
     }
@@ -31,176 +34,21 @@ class OpenCloudSpec extends ObjectBehavior
         $this->shouldHaveType('Gaufrette\Adapter');
     }
 
-    function it_reads_file(Container $container, DataObject $object)
+    function it_throws_exception_when_not_able_to_determine_if_container_exist(Service $objectStore)
     {
-        $object->getContent()->willReturn('Hello World');
-        $container->getObject('test')->willReturn($object);
+        $containerName = 'container-does-not-exist';
 
-        $this->read('test')->shouldReturn('Hello World');
-    }
+        $objectStore->containerExists($containerName)->willThrow($this->getBadResponseError(400));
+        $this->beConstructedWith($objectStore, $containerName);
 
-    function it_throws_file_not_found_exception_when_trying_to_read_an_unexisting_file(Container $container)
-    {
-        $container->getObject('test')->willThrow(new ObjectNotFoundException());
-
-        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringread('test');
-    }
-
-    function it_turns_exception_into_storage_failure_while_reading_a_file(Container $container)
-    {
-        $container->getObject('test')->willThrow(new \Exception('test'));
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringread('test');
-    }
-
-    function it_writes_file_returns_size(Container $container, DataObject $object)
-    {
-        $testData     = 'Hello World!';
-        $testDataSize = strlen($testData);
-
-        $object->getContentLength()->willReturn($testDataSize);
-        $container->uploadObject('test', $testData)->willReturn($object);
-
-        $this->write('test', $testData)->shouldReturn($testDataSize);
-    }
-
-    function it_turns_exception_into_storage_failure_while_writing_a_file(Container $container)
-    {
-        $testData = 'Hello World!';
-
-        $container->uploadObject('test', $testData)->willThrow(new CreateUpdateError());
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringwrite('test', $testData);
-    }
-
-    function it_returns_true_if_key_exists(Container $container, DataObject $object)
-    {
-        $container->getPartialObject('test')->willReturn($object);
-
-        $this->exists('test')->shouldReturn(true);
-    }
-
-    function it_returns_false_if_key_does_not_exist(Container $container)
-    {
-        $container->getPartialObject('test')->willReturn(false);
-
-        $this->exists('test')->shouldReturn(false);
-    }
-
-    function it_returns_false_if_key_does_not_exist_due_to_bad_response(Container $container)
-    {
-        $container->getPartialObject('test')->willThrow(new BadResponseException());
-
-        $this->exists('test')->shouldReturn(false);
-    }
-
-    function it_turns_exception_into_storage_failure_while_checking_if_file_exists(Container $container)
-    {
-        $container->getPartialObject('test')->willThrow(new \Exception('test'));
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringexists('test');
-    }
-
-    function it_deletes_file(Container $container, DataObject $object)
-    {
-        $object->delete()->willReturn(null);
-        $container->getObject('test')->willReturn($object);
-
-        $this->delete('test')->shouldReturn(null);
-    }
-
-    function it_throws_file_not_found_exception_when_trying_to_delete_an_unexisting_file(Container $container, DataObject $object)
-    {
-        $object->delete()->willThrow(new ObjectNotFoundException());
-        $container->getObject('test')->willReturn($object);
-
-        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringdelete('test');
-    }
-
-    function it_turns_exception_into_storage_failure_while_deleting_a_file(Container $container)
-    {
-        $container->getObject('test')->willThrow(new \Exception('test'));
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringdelete('test');
-    }
-
-    function it_renames_file(Container $container, DataObject $source, DataObject $dest)
-    {
-        $testData     = 'Hello World!';
-        $testDataSize = strlen($testData);
-
-        $container->getPartialObject('dest')->willReturn(false);
-
-        $source->getContent()->willReturn($testData);
-        $container->getObject('source')->willReturn($source);
-        $source->delete()->willReturn(null);
-
-        $dest->getContentLength()->willReturn($testDataSize);
-        $container->uploadObject('dest', $testData)->willReturn($dest);
-
-        $this->rename('source', 'dest')->shouldReturn(null);
-    }
-
-    function it_throws_storage_failure_when_dest_already_exists_during_rename(Container $container, DataObject $dest)
-    {
-        $container->getPartialObject('dest')->willReturn($dest);
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringrename('source', 'dest');
-    }
-
-    function it_returns_checksum(Container $container, DataObject $object)
-    {
-        $object->getEtag()->willReturn('test String');
-        $container->getObject('test')->willReturn($object);
-
-        $this->checksum('test')->shouldReturn('test String');
-    }
-
-    function it_throws_file_not_found_exception_when_trying_to_get_the_checksum_of_an_unexisting_file(Container $container)
-    {
-        $container->getObject('test')->willThrow(new ObjectNotFoundException());
-
-        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringchecksum('test');
-    }
-
-    function it_turns_exception_into_storage_failure_while_getting_the_checksum_of_a_file(Container $container)
-    {
-        $container->getObject('test')->willThrow(new \Exception('test'));
-
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringchecksum('test');
-    }
-
-    function it_returns_files_as_sorted_array(Container $container, Collection $objectList, DataObject $object1, DataObject $object2, DataObject $object3)
-    {
-        $outputArray = array('key1', 'key2', 'key5');
-        $index = 0;
-
-        $object1->getName()->willReturn('key5');
-        $object2->getName()->willReturn('key2');
-        $object3->getName()->willReturn('key1');
-
-        $objects = array($object1, $object2, $object3);
-
-        $objectList->next()->will(
-                   function () use ($objects, &$index) {
-                       if ($index < count($objects)) {
-                           $index++;
-
-                           return $objects[$index - 1];
-                       }
-                   }
-        )          ->shouldBeCalledTimes(count($objects) + 1);
-
-        $container->objectList()->willReturn($objectList);
-
-        $this->keys()->shouldReturn($outputArray);
+        $this->shouldThrow('\RuntimeException')->duringExists('test');
     }
 
     function it_throws_exception_if_container_does_not_exist(Service $objectStore)
     {
         $containerName = 'container-does-not-exist';
 
-        $objectStore->getContainer($containerName)->willThrow(new BadResponseException());
+        $objectStore->containerExists($containerName)->willReturn(false);
         $this->beConstructedWith($objectStore, $containerName);
 
         $this->shouldThrow('\RuntimeException')->duringExists('test');
@@ -211,9 +59,10 @@ class OpenCloudSpec extends ObjectBehavior
         $containerName = 'container-does-not-yet-exist';
         $filename = 'test';
 
-        $objectStore->getContainer($containerName)->willThrow(new BadResponseException());
-        $objectStore->createContainer($containerName)->willReturn($container);
-        $container->getPartialObject($filename)->willThrow(new BadResponseException());
+        $objectStore->containerExists($containerName)->willReturn(false);
+        $objectStore->createContainer(['name' => $containerName])->willReturn($container);
+
+        $container->objectExists($filename)->willReturn(false);
 
         $this->beConstructedWith($objectStore, $containerName, true);
 
@@ -224,33 +73,357 @@ class OpenCloudSpec extends ObjectBehavior
     {
         $containerName = 'container-does-not-yet-exist';
 
-        $objectStore->getContainer($containerName)->willThrow(new BadResponseException());
-        $objectStore->createContainer($containerName)->willReturn(false);
+        $objectStore->containerExists($containerName)->willReturn(false);
+        $objectStore->createContainer(['name' => $containerName])->willThrow($this->getBadResponseError(400));
 
         $this->beConstructedWith($objectStore, $containerName, true);
 
         $this->shouldThrow('\RuntimeException')->duringExists('test');
     }
 
-    function it_fetches_mtime(DataObject $object, Container $container)
+    function it_reads_file(Container $container, Object $object)
     {
-        $container->getObject('foo')->willReturn($object);
-        $object->getLastModified()->willReturn('Tue, 13 Jun 2017 22:02:34 GMT');
+        $container->getObject('test')->willReturn($object);
+        $object->download()->willReturn($this->getReadableStream('Hello World!'));
 
-        $this->mtime('foo')->shouldReturn('1497391354');
+        $this->read('test')->shouldReturn('Hello World!');
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_fetch_the_mtime_of_an_unexisting_file(Container $container)
+    function it_throws_file_not_found_while_reading_unexisting_file(Container $container)
     {
-        $container->getObject('foo')->willThrow(ObjectNotFoundException::class);
+        $container->getObject('test')->willThrow($this->getBadResponseError(404));
 
-        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringmtime('foo');
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringread('test');
     }
 
-    function it_turns_exception_into_storage_failure_while_getting_file_mtime(Container $container)
+    function it_throws_storage_failure_while_reading(Container $container)
     {
-        $container->getObject('foo')->willThrow(new \Exception('foo'));
+        $container->getObject('test')->willThrow($this->getBadResponseError(400));
 
-        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringmtime('foo');
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringread('test');
+    }
+
+    function it_writes_file(Container $container)
+    {
+        $container->createObject([
+            'name' => 'test',
+            'content' => 'Hello World!',
+        ])->shouldBeCalled();
+
+        $this->write('test', 'Hello World!')->shouldNotThrow();
+    }
+
+    function it_throws_storage_failure_while_writing(Container $container)
+    {
+        $container->createObject([
+            'name' => 'test',
+            'content' => 'Hello World!',
+        ])->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringwrite('test', 'Hello World!');
+    }
+
+    function it_returns_true_if_key_exists(Container $container)
+    {
+        $container->objectExists('test')->willReturn(true);
+
+        $this->exists('test')->shouldReturn(true);
+    }
+
+    function it_returns_false_if_key_does_not_exist(Container $container)
+    {
+        $container->objectExists('test')->willReturn(false);
+
+        $this->exists('test')->shouldReturn(false);
+    }
+
+    function it_throws_storage_failure_while_checking_if_file_exists(Container $container)
+    {
+        $container->objectExists('test')->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringexists('test');
+    }
+
+    function it_list_objects(Container $container)
+    {
+        $client = new Client();
+        $api = new Api();
+
+        $generate = function () use ($client, $api) {
+            for ($i = 0; $i < 3; $i++) {
+                $object = new Object($client, $api);
+                $object->name = sprintf('object %d', $i + 1);
+
+                yield $object;
+            }
+        };
+
+        $container->listObjects()->willReturn($generate());
+
+        $this->keys()->shouldReturn([
+            'object 1',
+            'object 2',
+            'object 3',
+        ]);
+    }
+
+    function it_throws_storage_failure_while_listing_objects(Container $container)
+    {
+        $container->listObjects()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringkeys();
+    }
+
+    function it_list_objects_with_prefix(Container $container)
+    {
+        $client = new Client();
+        $api = new Api();
+
+        $generate = function () use ($client, $api) {
+            for ($i = 0; $i < 6; $i++) {
+                $object = new Object($client, $api);
+                $object->name = sprintf('%sobject %d', $i < 3 ? 'prefixed ' : '', $i + 1);
+
+                yield $object;
+            }
+        };
+
+        $container->listObjects()->willReturn($generate());
+
+        $this->listKeys('prefix')->shouldReturn([
+            'prefixed object 1',
+            'prefixed object 2',
+            'prefixed object 3',
+        ]);
+    }
+
+    function it_throws_storage_failure_while_listing_objects_with_prefix(Container $container)
+    {
+        $container->listObjects()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringlistKeys('prefix');
+    }
+
+    function it_fetches_mtime(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->shouldBeCalled();
+        $object->lastModified = 'Tue, 13 Jun 2017 22:02:34 GMT';
+
+        $this->mtime('test')->shouldReturn('1497391354');
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_fetch_the_mtime_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringmtime('test');
+    }
+
+    function it_throws_storage_failure_while_fetching_mtime(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringmtime('test');
+    }
+
+    function it_deletes_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->delete()->shouldBeCalled();
+
+        $this->delete('test')->shouldNotThrow();
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_delete_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->delete()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringdelete('test');
+    }
+
+    function it_throws_storage_failure_while_deleting(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->delete()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringdelete('test');
+    }
+
+    function it_renames_file(Container $container, Object $source)
+    {
+        $container->objectExists('dest')->willReturn(false);
+
+        $container->getObject('source')->willReturn($source);
+        $source->download()->willReturn($this->getReadableStream('Hello World!'));
+
+        $container->createObject([
+            'name' => 'dest',
+            'content' => 'Hello World!',
+        ])->shouldBeCalled();
+
+        $source->delete()->shouldBeCalled();
+
+        $this->rename('source', 'dest')->shouldNotThrow();
+    }
+
+    function it_throws_storage_failure_when_dest_already_exists_during_rename(Container $container)
+    {
+        $container->objectExists('dest')->willReturn(true);
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringrename('source', 'dest');
+    }
+
+    function it_does_not_handle_directories()
+    {
+        $this->isDirectory('whatever')->shouldReturn(false);
+    }
+
+    function it_returns_checksum(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->shouldBeCalled();
+        $object->hash = '1234abcd';
+
+        $this->checksum('test')->shouldReturn('1234abcd');
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_get_the_checksum_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringchecksum('test');
+    }
+
+    function it_throws_storage_failure_while_fetching_checksum(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringchecksum('test');
+    }
+
+    function it_fetches_metadata(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->getMetadata()->willReturn([
+            'foo' => 'bar',
+        ]);
+
+        $this->getMetadata('test')->shouldReturn([
+            'foo' => 'bar',
+        ]);
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_get_the_metadata_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->getMetadata()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringgetMetadata('test');
+    }
+
+    function it_throws_storage_failure_while_fetching_metadata(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->getMetadata()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringgetMetadata('test');
+    }
+
+    function it_set_metadata(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->resetMetadata([
+            'foo' => 'bar',
+        ])->shouldBeCalled();
+
+        $this->setMetadata('test', ['foo' => 'bar'])->shouldNotThrow();
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_set_the_metadata_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->resetMetadata(['foo' => 'bar'])->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringsetMetadata('test', ['foo' => 'bar']);
+    }
+
+    function it_throws_storage_failure_while_setting_metadata(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->resetMetadata(['foo' => 'bar'])->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringsetMetadata('test', ['foo' => 'bar']);
+    }
+
+    function it_returns_mime_type(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->shouldBeCalled();
+        $object->contentType = 'plain/text';
+
+        $this->mimeType('test')->shouldReturn('plain/text');
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_get_the_mime_type_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringmimeType('test');
+    }
+
+    function it_throws_storage_failure_while_fetching_mime_type(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringmimeType('test');
+    }
+
+    function it_returns_size(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->shouldBeCalled();
+        $object->contentLength = 42;
+
+        $this->size('test')->shouldReturn(42);
+    }
+
+    function it_throws_file_not_found_exception_when_trying_to_get_the_size_of_an_unexisting_file(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(404));
+
+        $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringsize('test');
+    }
+
+    function it_throws_storage_failure_while_fetching_size(Container $container, Object $object)
+    {
+        $container->getObject('test')->willReturn($object);
+        $object->retrieve()->willThrow($this->getBadResponseError(400));
+
+        $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringsize('test');
+    }
+
+    private function getReadableStream($content): StreamInterface
+    {
+        $stream = new BufferStream();
+        $stream->write($content);
+
+        return $stream;
+    }
+
+    private function getBadResponseError(int $statusCode): BadResponseError
+    {
+        $error = new BadResponseError();
+        $error->setResponse(new Response($statusCode));
+
+        return $error;
     }
 }
