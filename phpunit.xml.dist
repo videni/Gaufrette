@@ -40,9 +40,10 @@
         <env name="AZURE_CONTAINER" value="" />-->
 
         <!-- Configuration for OpenCloud/Rackspace adapter -->
-        <!--<env name="RACKSPACE_USER" value="" />
-        <env name="RACKSPACE_APIKEY" value="" />
-        <env name="RACKSPACE_CONTAINER" value="" />-->
+        <!--<env name="RACKSPACE_USERNAME" value="" />
+        <env name="RACKSPACE_PASSWORD" value="" />
+        <env name="RACKSPACE_TENANT_ID" value="" />
+        <env name="RACKSPACE_REGION" value="" />-->
     </php>
 
     <testsuites>
