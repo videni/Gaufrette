@@ -7,6 +7,8 @@ has been replaced by the [OpenStack adapter](/src/Gaufrette/Adapter/OpenStack.ph
 The new adapter now uses the https://github.com/php-opencloud/openstack SDK
 which is the latest supported version of the SDK for OpenStack instead of
 https://github.com/rackspace/php-opencloud .
+- The [ObjectStoreFactory](https://github.com/KnpLabs/Gaufrette/blob/v0.5.0/src/Gaufrette/Adapter/OpenStackCloudFiles/ObjectStoreFactory.php)
+has also been removed.
 
 v0.5
 ====
