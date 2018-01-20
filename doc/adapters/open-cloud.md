@@ -14,7 +14,8 @@ To use the OpenCloud adapter you will need to create a connection using the
 
 ## Usage with Identity API v3
 
-For services using the [OpenStack Identity API v3](https://developer.openstack.org/api-ref/identity/v3/index.html) :
+For services using the [OpenStack Identity API v3](https://developer.openstack.org/api-ref/identity/v3/index.html),
+such as [IBM Cloud](https://www.ibm.com/cloud/) :
 
 ```php
 use Gaufrette\Adapter\OpenCloud as OpenCloudAdapter;
@@ -22,12 +23,14 @@ use Gaufrette\Filesystem;
 use OpenStack\OpenStack;
 
 $objectStore = (new OpenStack([
-        'username' => 'your username',
-        'password' => 'your Keystone password',
-        'tenantName' => 'your tenant (project) name',
-        'authUrl' => 'https://example.com/v3/identity',
+        'user' => [
+            'id' => 'the user ID related to the storage service',
+            'password' => 'the user password related to the storage service',
+        ],
+        'authUrl' => 'https://example.com/v2/identity',
+        'region' => 'the cloud region (eg "london")',
     ]))
-    ->objectStoreV1()
+    ->objectStoreV1();
 ;
 
 $adapter = new OpenCloudAdapter(
@@ -40,8 +43,9 @@ $adapter = new OpenCloudAdapter(
 $filesystem = new Filesystem($adapter);
 ```
 
-See [here](https://github.com/php-opencloud/openstack/blob/master/src/OpenStack.php)
-for all OpenStack connection options.
+To find the options to use with IBM Cloud, [create a new project](https://console.bluemix.net/developer/appservice/starter-kits)
+and add an ObjectStorage to the project. The storage will be configured
+automatically and you'll be able to see its service credentials then.
 
 ## Usage with Identity API v2
 
@@ -85,3 +89,8 @@ $adapter = new OpenCloudAdapter(
 
 $filesystem = new Filesystem($adapter);
 ```
+
+## Links
+
+- Go [here](https://github.com/php-opencloud/openstack/blob/master/src/OpenStack.php)
+to see all OpenStack connection options.
