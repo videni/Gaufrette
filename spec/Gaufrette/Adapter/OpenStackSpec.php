@@ -14,13 +14,13 @@ use PhpSpec\ObjectBehavior;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * OpenCloudSpec
+ * OpenStackSpec
  *
  * @author  Chris Warner <cdw.lighting@gmail.com>
  * @author  Daniel Richter <nexyz9@gmail.com>
  * @author  Nicolas MURE <nicolas.mure@knplabs.com>
  */
-class OpenCloudSpec extends ObjectBehavior
+class OpenStackSpec extends ObjectBehavior
 {
     function let(Service $objectStore, Container $container)
     {

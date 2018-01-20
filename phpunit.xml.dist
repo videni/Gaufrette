@@ -39,11 +39,16 @@
         <env name="AZURE_KEY" value="" />
         <env name="AZURE_CONTAINER" value="" />-->
 
-        <!-- Configuration for OpenCloud/Rackspace adapter -->
+        <!-- Configuration for OpenStack Rackspace adapter -->
         <!--<env name="RACKSPACE_USERNAME" value="" />
         <env name="RACKSPACE_PASSWORD" value="" />
         <env name="RACKSPACE_TENANT_ID" value="" />
         <env name="RACKSPACE_REGION" value="" />-->
+
+        <!-- Configuration for OpenStack IBM Cloud adapter -->
+        <!--<env name="IBMCLOUD_USERID" value="" />
+        <env name="IBMCLOUD_PASSWORD" value="" />
+        <env name="IBMCLOUD_REGION" value="" />-->
     </php>
 
     <testsuites>

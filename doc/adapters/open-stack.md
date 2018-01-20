@@ -1,16 +1,16 @@
 ---
-currentMenu: open-cloud
+currentMenu: open-stack
 ---
 
-# OpenCloud
+# OpenStack
 
 First, you will need to install the adapter:
 ```bash
-composer require gaufrette/opencloud-adapter
+composer require gaufrette/openstack-adapter
 ```
 
-To use the OpenCloud adapter you will need to create a connection using the
-[OpenCloud SDK](https://github.com/php-opencloud/openstack).
+To use the OpenStack adapter you will need to create a connection using the
+[OpenStack SDK](https://github.com/php-opencloud/openstack).
 
 ## Usage with Identity API v3
 
@@ -18,7 +18,7 @@ For services using the [OpenStack Identity API v3](https://developer.openstack.o
 such as [IBM Cloud](https://www.ibm.com/cloud/) :
 
 ```php
-use Gaufrette\Adapter\OpenCloud as OpenCloudAdapter;
+use Gaufrette\Adapter\OpenStack as OpenStackAdapter;
 use Gaufrette\Filesystem;
 use OpenStack\OpenStack;
 
@@ -33,7 +33,7 @@ $objectStore = (new OpenStack([
     ->objectStoreV1();
 ;
 
-$adapter = new OpenCloudAdapter(
+$adapter = new OpenStackAdapter(
     $objectStore,
     'container-name',
     true // optional, indicates whether to create the container or not
@@ -53,7 +53,7 @@ For services using the [OpenStack Identity API v2](https://developer.openstack.o
 such as [rackspace.com](https://www.rackspace.com/) :
 
 ```php
-use Gaufrette\Adapter\OpenCloud as OpenCloudAdapter;
+use Gaufrette\Adapter\OpenStack as OpenStackAdapter;
 use Gaufrette\Filesystem;
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
@@ -80,7 +80,7 @@ $objectStore = new (OpenStack([
     ])
 ;
 
-$adapter = new OpenCloudAdapter(
+$adapter = new OpenStackAdapter(
     $objectStore,
     'container-name',
     true // optional, indicates whether to create the container or not

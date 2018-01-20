@@ -2,9 +2,11 @@ v1.0
 ====
 
 ## New features
-- The [OpenCloud adapter](/src/Gaufrette/Adapter/OpenCloud.php) now uses the
-https://github.com/php-opencloud/openstack SDK instead of the no longer
-supported https://github.com/rackspace/php-opencloud SDK.
+- The [OpenCloud adapter](https://github.com/KnpLabs/Gaufrette/blob/v0.5.0/src/Gaufrette/Adapter/OpenCloud.php)
+has been replaced by the [OpenStack adapter](/src/Gaufrette/Adapter/OpenStack.php).
+The new adapter now uses the https://github.com/php-opencloud/openstack SDK
+which is the latest supported version of the SDK for OpenStack instead of
+https://github.com/rackspace/php-opencloud .
 
 v0.5
 ====

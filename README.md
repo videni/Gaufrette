@@ -32,8 +32,8 @@ Read the official [Gaufrette documentation](http://knplabs.github.io/Gaufrette/)
 
 ### Metapackages for adapters
 
-Every maintained adapter now have a dedicated metapackage. You can [find the list on packagist](https://packagist.org/packages/gaufrette/). 
-**We highly recommend you to use them as they contain their own requirements**: you don't need to worry about third-party dependencies 
+Every maintained adapter now have a dedicated metapackage. You can [find the list on packagist](https://packagist.org/packages/gaufrette/).
+**We highly recommend you to use them as they contain their own requirements**: you don't need to worry about third-party dependencies
 to install before using Gaufrette anymore.
 
 ### Symfony integration
@@ -42,7 +42,7 @@ Symfony integration is available through [KnpLabs/KnpGaufretteBundle](https://gi
 
 ### Maintainers
 
-Here is the list of dedicated maintainer(s) for every adapter not deprecated. If you don't receive any response to 
+Here is the list of dedicated maintainer(s) for every adapter not deprecated. If you don't receive any response to
 your issue or pull request in a timely manner, ping us:
 
 | Adapter            | Referent                    |
@@ -56,7 +56,7 @@ your issue or pull request in a timely manner, ping us:
 | GridFS             | @NiR-                       |
 | InMemory           |                             |
 | Local              |                             |
-| OpenCloud          | @NiR-                       |
+| OpenStack          | @nicolasmure                |
 | PhpseclibSftp      | @fabschurt                  |
 | Zip                |                             |
 

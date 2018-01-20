@@ -12,7 +12,7 @@ use OpenStack\ObjectStore\v1\Models\Object;
 use OpenStack\ObjectStore\v1\Service;
 
 /**
- * OpenCloud adapter.
+ * OpenStack adapter.
  *
  * @author  James Watson <james@sitepulse.org>
  * @author  Daniel Richter <nexyz9@gmail.com>
@@ -21,7 +21,7 @@ use OpenStack\ObjectStore\v1\Service;
  * @see http://docs.os.php-opencloud.com/en/latest/services/object-store/v1/objects.html
  * @see http://refdocs.os.php-opencloud.com/OpenStack/OpenStack.html
  */
-class OpenCloud implements Adapter,
+class OpenStack implements Adapter,
                            ChecksumCalculator,
                            ListKeysAware,
                            MetadataSupporter,
