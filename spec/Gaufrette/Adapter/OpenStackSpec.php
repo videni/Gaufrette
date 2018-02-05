@@ -8,7 +8,7 @@ use GuzzleHttp\Psr7\BufferStream;
 use OpenStack\Common\Error\BadResponseError;
 use OpenStack\Identity\v2\Api;
 use OpenStack\ObjectStore\v1\Models\Container;
-use OpenStack\ObjectStore\v1\Models\Object;
+use OpenStack\ObjectStore\v1\Models\StorageObject;
 use OpenStack\ObjectStore\v1\Service;
 use PhpSpec\ObjectBehavior;
 use Psr\Http\Message\StreamInterface;
@@ -81,7 +81,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('\RuntimeException')->duringExists('test');
     }
 
-    function it_reads_file(Container $container, Object $object)
+    function it_reads_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->download()->willReturn($this->getReadableStream('Hello World!'));
@@ -151,7 +151,7 @@ class OpenStackSpec extends ObjectBehavior
 
         $generate = function () use ($client, $api) {
             for ($i = 0; $i < 3; $i++) {
-                $object = new Object($client, $api);
+                $object = new StorageObject($client, $api);
                 $object->name = sprintf('object %d', $i + 1);
 
                 yield $object;
@@ -181,7 +181,7 @@ class OpenStackSpec extends ObjectBehavior
 
         $generate = function () use ($client, $api) {
             for ($i = 0; $i < 6; $i++) {
-                $object = new Object($client, $api);
+                $object = new StorageObject($client, $api);
                 $object->name = sprintf('%sobject %d', $i < 3 ? 'prefixed ' : '', $i + 1);
 
                 yield $object;
@@ -204,7 +204,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringlistKeys('prefix');
     }
 
-    function it_fetches_mtime(Container $container, Object $object)
+    function it_fetches_mtime(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->shouldBeCalled();
@@ -213,7 +213,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->mtime('test')->shouldReturn('1497391354');
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_fetch_the_mtime_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_fetch_the_mtime_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(404));
@@ -221,7 +221,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringmtime('test');
     }
 
-    function it_throws_storage_failure_while_fetching_mtime(Container $container, Object $object)
+    function it_throws_storage_failure_while_fetching_mtime(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(400));
@@ -229,7 +229,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringmtime('test');
     }
 
-    function it_deletes_file(Container $container, Object $object)
+    function it_deletes_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->delete()->shouldBeCalled();
@@ -237,7 +237,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->delete('test')->shouldNotThrow();
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_delete_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_delete_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->delete()->willThrow($this->getBadResponseError(404));
@@ -245,7 +245,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringdelete('test');
     }
 
-    function it_throws_storage_failure_while_deleting(Container $container, Object $object)
+    function it_throws_storage_failure_while_deleting(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->delete()->willThrow($this->getBadResponseError(400));
@@ -253,7 +253,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringdelete('test');
     }
 
-    function it_renames_file(Container $container, Object $source)
+    function it_renames_file(Container $container, StorageObject $source)
     {
         $container->objectExists('dest')->willReturn(false);
 
@@ -282,7 +282,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->isDirectory('whatever')->shouldReturn(false);
     }
 
-    function it_returns_checksum(Container $container, Object $object)
+    function it_returns_checksum(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->shouldBeCalled();
@@ -291,7 +291,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->checksum('test')->shouldReturn('1234abcd');
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_get_the_checksum_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_get_the_checksum_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(404));
@@ -299,7 +299,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringchecksum('test');
     }
 
-    function it_throws_storage_failure_while_fetching_checksum(Container $container, Object $object)
+    function it_throws_storage_failure_while_fetching_checksum(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(400));
@@ -307,7 +307,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringchecksum('test');
     }
 
-    function it_fetches_metadata(Container $container, Object $object)
+    function it_fetches_metadata(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->getMetadata()->willReturn([
@@ -319,7 +319,7 @@ class OpenStackSpec extends ObjectBehavior
         ]);
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_get_the_metadata_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_get_the_metadata_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->getMetadata()->willThrow($this->getBadResponseError(404));
@@ -327,7 +327,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringgetMetadata('test');
     }
 
-    function it_throws_storage_failure_while_fetching_metadata(Container $container, Object $object)
+    function it_throws_storage_failure_while_fetching_metadata(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->getMetadata()->willThrow($this->getBadResponseError(400));
@@ -335,7 +335,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringgetMetadata('test');
     }
 
-    function it_set_metadata(Container $container, Object $object)
+    function it_set_metadata(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->resetMetadata([
@@ -345,7 +345,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->setMetadata('test', ['foo' => 'bar'])->shouldNotThrow();
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_set_the_metadata_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_set_the_metadata_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->resetMetadata(['foo' => 'bar'])->willThrow($this->getBadResponseError(404));
@@ -353,7 +353,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringsetMetadata('test', ['foo' => 'bar']);
     }
 
-    function it_throws_storage_failure_while_setting_metadata(Container $container, Object $object)
+    function it_throws_storage_failure_while_setting_metadata(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->resetMetadata(['foo' => 'bar'])->willThrow($this->getBadResponseError(400));
@@ -361,7 +361,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringsetMetadata('test', ['foo' => 'bar']);
     }
 
-    function it_returns_mime_type(Container $container, Object $object)
+    function it_returns_mime_type(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->shouldBeCalled();
@@ -370,7 +370,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->mimeType('test')->shouldReturn('plain/text');
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_get_the_mime_type_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_get_the_mime_type_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(404));
@@ -378,7 +378,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringmimeType('test');
     }
 
-    function it_throws_storage_failure_while_fetching_mime_type(Container $container, Object $object)
+    function it_throws_storage_failure_while_fetching_mime_type(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(400));
@@ -386,7 +386,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringmimeType('test');
     }
 
-    function it_returns_size(Container $container, Object $object)
+    function it_returns_size(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->shouldBeCalled();
@@ -395,7 +395,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->size('test')->shouldReturn(42);
     }
 
-    function it_throws_file_not_found_exception_when_trying_to_get_the_size_of_an_unexisting_file(Container $container, Object $object)
+    function it_throws_file_not_found_exception_when_trying_to_get_the_size_of_an_unexisting_file(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(404));
@@ -403,7 +403,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\FileNotFound')->duringsize('test');
     }
 
-    function it_throws_storage_failure_while_fetching_size(Container $container, Object $object)
+    function it_throws_storage_failure_while_fetching_size(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->retrieve()->willThrow($this->getBadResponseError(400));

@@ -8,7 +8,7 @@ use Gaufrette\Exception\StorageFailure;
 use Gaufrette\Util;
 use OpenStack\Common\Error\BadResponseError;
 use OpenStack\ObjectStore\v1\Models\Container;
-use OpenStack\ObjectStore\v1\Models\Object;
+use OpenStack\ObjectStore\v1\Models\StorageObject;
 use OpenStack\ObjectStore\v1\Service;
 
 /**
@@ -152,7 +152,7 @@ class OpenStack implements Adapter,
     public function keys()
     {
         try {
-            return array_map(function (Object $object) {
+            return array_map(function (StorageObject $object) {
                 return $object->name;
             }, iterator_to_array($this->getContainer()->listObjects()));
         } catch (BadResponseError $e ) {
@@ -323,7 +323,7 @@ class OpenStack implements Adapter,
      *
      * @throws BadResponseError
      *
-     * @return Object
+     * @return StorageObject
      */
     protected function getObject($key)
     {
@@ -339,7 +339,7 @@ class OpenStack implements Adapter,
      *
      * @throws BadResponseError
      *
-     * @return Object
+     * @return StorageObject
      */
     protected function retrieveObject($key)
     {
