@@ -234,6 +234,11 @@ final class OpenStack implements Adapter,
         try {
             $this->write($targetKey, $this->read($sourceKey));
 
+            $metadata = $this->getMetadata($sourceKey);
+            if (!empty($metadata)) {
+                $this->setMetadata($targetKey, $metadata);
+            }
+
             $this->delete($sourceKey);
         } catch (StorageFailure $e) {
             throw StorageFailure::unexpectedFailure(

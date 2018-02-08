@@ -253,12 +253,15 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringdelete('test');
     }
 
-    function it_renames_file(Container $container, StorageObject $source)
+    function it_renames_file(Container $container, StorageObject $source, StorageObject $dest)
     {
         $container->objectExists('dest')->willReturn(false);
 
         $container->getObject('source')->willReturn($source);
+        $container->getObject('dest')->willReturn($dest);
         $source->download()->willReturn($this->getReadableStream('Hello World!'));
+        $source->getMetadata()->willReturn(['meta' => 'data']);
+        $dest->resetMetadata(['meta' => 'data'])->shouldBeCalled();
 
         $container->createObject([
             'name' => 'dest',
