@@ -5,7 +5,6 @@ namespace spec\Gaufrette;
 use Gaufrette\Adapter;
 use Gaufrette\Exception\StorageFailure;
 use Gaufrette\File;
-use Gaufrette\Exception\StorageFailure;
 use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 
@@ -205,7 +204,7 @@ class FilesystemSpec extends ObjectBehavior
     function it_fails_when_delete_is_not_successful(Adapter $adapter)
     {
         $adapter->exists('filename')->willReturn(true);
-        $adapter->delete('filename')->willThrow(StorageFailure::unexpectedFailure('rename', []));
+        $adapter->delete('filename')->willThrow(StorageFailure::unexpectedFailure('delete', []));
 
         $this
             ->shouldThrow(StorageFailure::class)

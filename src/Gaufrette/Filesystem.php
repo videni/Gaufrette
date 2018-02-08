@@ -65,7 +65,11 @@ class Filesystem implements FilesystemInterface
 
         try {
             $this->adapter->rename($sourceKey, $targetKey);
-        } catch (GaufretteException $e) {
+        } catch (\Exception $e) {
+            if ($e instanceof GaufretteException) {
+                throw $e;
+            }
+
             throw new \RuntimeException(sprintf('Could not rename the "%s" key to "%s".', $sourceKey, $targetKey));
         }
 
@@ -129,7 +133,11 @@ class Filesystem implements FilesystemInterface
             $this->removeFromRegister($key);
 
             return true;
-        } catch (GaufretteException $e) {
+        } catch (\Exception $e) {
+            if ($e instanceof GaufretteException) {
+                throw $e;
+            }
+
             throw new \RuntimeException(sprintf('Could not remove the "%s" key.', $key));
         }
     }

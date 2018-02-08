@@ -21,7 +21,7 @@ use OpenStack\ObjectStore\v1\Service;
  * @see http://docs.os.php-opencloud.com/en/latest/services/object-store/v1/objects.html
  * @see http://refdocs.os.php-opencloud.com/OpenStack/OpenStack.html
  */
-class OpenStack implements Adapter,
+final class OpenStack implements Adapter,
                            ChecksumCalculator,
                            ListKeysAware,
                            MetadataSupporter,
@@ -31,22 +31,22 @@ class OpenStack implements Adapter,
     /**
      * @var Service
      */
-    protected $objectStore;
+    private $objectStore;
 
     /**
      * @var string
      */
-    protected $containerName;
+    private $containerName;
 
     /**
      * @var bool
      */
-    protected $createContainer;
+    private $createContainer;
 
     /**
      * @var Container
      */
-    protected $container;
+    private $container;
 
     /**
      * @param Service $objectStore
@@ -63,11 +63,11 @@ class OpenStack implements Adapter,
     /**
      * Returns an initialized container.
      *
-     * @throws \RuntimeException
+     * @throws StorageFailure
      *
      * @return Container
      */
-    protected function getContainer()
+    private function getContainer()
     {
         if ($this->container) {
             return $this->container;
@@ -79,20 +79,33 @@ class OpenStack implements Adapter,
             }
 
             if (!$this->createContainer) {
-                throw new \RuntimeException(sprintf('Container "%s" does not exist.', $this->containerName));
+                throw new StorageFailure(sprintf('Container "%s" does not exist.', $this->containerName));
             }
 
-            try {
-                return $this->container = $this->objectStore->createContainer(['name' => $this->containerName]);
-            } catch (BadResponseError $e) {
-                throw new \RuntimeException(
-                    sprintf('Container "%s" could not be created (HTTP %d response received)', $this->containerName, $e->getResponse()->getStatusCode())
-                );
-            }
+            return $this->container = $this->createContainer();
         } catch (BadResponseError $e) {
-            // non 404 status error received
-            throw new \RuntimeException(
-                sprintf('HTTP %d response received when checking the existence of the container "%s"', $e->getResponse()->getStatusCode(), $this->containerName)
+            throw new StorageFailure(
+                sprintf('HTTP %d response received when checking the existence of the container "%s"', $e->getResponse()->getStatusCode(), $this->containerName),
+                $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * @throws StorageFailure
+     *
+     * @return Container
+     */
+    private function createContainer()
+    {
+        try {
+            return $this->objectStore->createContainer(['name' => $this->containerName]);
+        } catch (BadResponseError $e) {
+            throw new StorageFailure(
+                sprintf('Container "%s" could not be created (HTTP %d response received)', $this->containerName, $e->getResponse()->getStatusCode()),
+                $e->getCode(),
+                $e
             );
         }
     }
@@ -218,9 +231,17 @@ class OpenStack implements Adapter,
             );
         }
 
-        $this->write($targetKey, $this->read($sourceKey));
+        try {
+            $this->write($targetKey, $this->read($sourceKey));
 
-        $this->delete($sourceKey);
+            $this->delete($sourceKey);
+        } catch (StorageFailure $e) {
+            throw StorageFailure::unexpectedFailure(
+                'rename',
+                ['sourceKey' => $sourceKey, 'targetKey' => $targetKey],
+                $e
+            );
+        }
     }
 
     /**
@@ -325,7 +346,7 @@ class OpenStack implements Adapter,
      *
      * @return StorageObject
      */
-    protected function getObject($key)
+    private function getObject($key)
     {
         return $this->getContainer()->getObject($key);
     }
@@ -341,7 +362,7 @@ class OpenStack implements Adapter,
      *
      * @return StorageObject
      */
-    protected function retrieveObject($key)
+    private function retrieveObject($key)
     {
         $object = $this->getObject($key);
         $object->retrieve();

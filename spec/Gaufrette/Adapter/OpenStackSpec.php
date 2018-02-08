@@ -144,7 +144,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringexists('test');
     }
 
-    function it_list_objects(Container $container)
+    function it_lists_objects(Container $container)
     {
         $client = new Client();
         $api = new Api();
@@ -174,7 +174,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringkeys();
     }
 
-    function it_list_objects_with_prefix(Container $container)
+    function it_lists_objects_with_prefix(Container $container)
     {
         $client = new Client();
         $api = new Api();
@@ -335,7 +335,7 @@ class OpenStackSpec extends ObjectBehavior
         $this->shouldThrow('Gaufrette\Exception\StorageFailure')->duringgetMetadata('test');
     }
 
-    function it_set_metadata(Container $container, StorageObject $object)
+    function it_sets_metadata(Container $container, StorageObject $object)
     {
         $container->getObject('test')->willReturn($object);
         $object->resetMetadata([
