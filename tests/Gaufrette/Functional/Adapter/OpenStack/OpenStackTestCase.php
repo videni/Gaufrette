@@ -76,23 +76,4 @@ abstract class OpenStackTestCase extends FunctionalTestCase
             'Custom-Stuff' => 'bar',
         ], $this->filesystem->getAdapter()->getMetadata('test.txt'));
     }
-
-    /*
-     * OVERWRITE PARENT FUNCTIONS
-     * @TODO : REMOVE THE BELOW OVERWRITES WHEN
-     *         https://github.com/KnpLabs/Gaufrette/pull/521 WILL BE MERGED.
-     */
-
-    /**
-     * @test
-     * @group functional
-     */
-    public function shouldWriteAndRead()
-    {
-        $this->filesystem->write('foo', 'Some content');
-        $this->filesystem->write('test/subdir/foo', 'Some content1', true);
-
-        $this->assertEquals('Some content', $this->filesystem->read('foo'));
-        $this->assertEquals('Some content1', $this->filesystem->read('test/subdir/foo'));
-    }
 }
