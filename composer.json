@@ -30,7 +30,6 @@
         "phpseclib/phpseclib": "^2.0",
         "doctrine/dbal": ">=2.3",
         "dropbox-php/dropbox-php": "*",
-        "herzult/php-ssh": "*",
         "phpunit/phpunit": "~6.5",
         "mikey179/vfsStream": "~1.2.0",
         "league/flysystem": "~1.0",
@@ -39,7 +38,6 @@
         "microsoft/azure-storage": "~0.15.0",
         "akeneo/phpspec-skip-example-extension": "^3.0",
         "liuggio/fastest": "^1.6",
-        "google/cloud": "^0.20.1",
         "google/cloud-storage": "~1.0"
     },
     "suggest": {
@@ -59,7 +57,6 @@
         "ext-curl": "*",
         "ext-mbstring": "*",
         "ext-fileinfo": "This extension is used to automatically detect the content-type of a file in the AwsS3, OpenCloud, AzureBlogStorage and GoogleCloudStorage adapters",
-        "ext-mongo": "*",
         "ext-mongodb": "*",
         "mongodb/mongodb": "*",
         "google/cloud-storage": "to use Google Cloud Client Library"
